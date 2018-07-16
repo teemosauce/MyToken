@@ -2,24 +2,24 @@ pragma solidity ^0.4.2;
 
 import "truffle/Assert.sol";
 import "truffle/DeployedAddresses.sol";
-import "../contracts/MetaCoin.sol";
+import "../contracts/MyToken.sol";
 
 contract TestMetacoin {
 
-  function testInitialBalanceUsingDeployedContract() public {
-    MetaCoin meta = MetaCoin(DeployedAddresses.MetaCoin());
+    function testInitialBalanceUsingDeployedContract() public {
+        MyToken meta = MyToken(DeployedAddresses.MyToken());
 
-    uint expected = 10000;
+        uint expected = 10000;
 
-    Assert.equal(meta.getBalance(tx.origin), expected, "Owner should have 10000 MetaCoin initially");
-  }
+        Assert.equal(token.getBalance(tx.origin), expected, "Owner should have 10000 MyToken initially");
+    }
 
-  function testInitialBalanceWithNewMetaCoin() public {
-    MetaCoin meta = new MetaCoin();
+    function testInitialBalanceWithNewMyToken() public {
+        MyToken meta = new MyToken();
 
-    uint expected = 10000;
+        uint expected = 10000;
 
-    Assert.equal(meta.getBalance(tx.origin), expected, "Owner should have 10000 MetaCoin initially");
-  }
+        Assert.equal(token.getBalance(tx.origin), expected, "Owner should have 10000 MyToken initially");
+    }
 
 }

@@ -1,5 +1,5 @@
-var CustomCoin = artifacts.require("./CustomCoin.sol");
+var MyToken = artifacts.require("./MyToken.sol");
 
 module.exports = function(deployer) {
-  deployer.deploy(CustomCoin);
+  deployer.deploy(MyToken);
 };

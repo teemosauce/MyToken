@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.2;
 
 import "./TokenERC20.sol";
 import "./Owned.sol";
@@ -10,11 +10,19 @@ contract MyToken is Owned, TokenERC20 {
 
     event LockAccount(address target, uint timestamp);
 
-    mapping(address => uint) public locks;
+    mapping(address => uint256) public locks;
 
     constructor (uint256 initialSupply, string tokenName, string tokenSymbol) TokenERC20(initialSupply, tokenName, tokenSymbol) public {}
 
-    function lockAccount(address target, uint lockSeconds) public {
+    function nowTimestamp() public view returns(uint256) {
+        return now;
+    }
+
+    function  blockTimestamp() public view returns(uint256) {
+        return block.timestamp;
+    }
+
+    function lockAccount(address target, uint256 lockSeconds) public returns(uint256) {
 
         //判断锁日期是否大于当前时间
         require(now < lockSeconds);
@@ -26,10 +34,12 @@ contract MyToken is Owned, TokenERC20 {
         locks[target] = lockSeconds;
 
         emit LockAccount(target, lockSeconds);
+
+        return now;
     }
 
     // 判断是否锁仓
-    function isLocked(address target) public returns (bool success) {
+    function isLocked(address target) public view returns (bool success) {
         return locks[target] > now;
     }
 
@@ -46,7 +56,7 @@ contract MyToken is Owned, TokenERC20 {
         emit Transfer(_from, _to, _value);
     }
 
-    // 新发行资产
+    // 代币增发
     function mintToken(address target, uint256 mintedAmount) onlyOwner public {
         balanceOf[target] += mintedAmount;
         totalSupply += mintedAmount;
