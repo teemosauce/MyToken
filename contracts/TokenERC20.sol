@@ -18,7 +18,7 @@ contract TokenERC20 {
 
     event Burn(address indexed from, uint256 value);
 
-    constructor (uint256 initialSupply, string tokenName, string tokenSymbol) public {
+    constructor(uint256 initialSupply, string tokenName, string tokenSymbol) public {
         totalSupply = initialSupply * 10 ** uint256(decimals);  // Update total supply with the decimal amount
         balanceOf[msg.sender] = totalSupply;                // 合约创建者分配所有token 这里可以制定分配规则
 

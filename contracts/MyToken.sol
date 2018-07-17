@@ -8,48 +8,52 @@ contract MyToken is Owned, TokenERC20 {
     uint256 public sellPrice;
     uint256 public buyPrice;
 
-    event LockAccount(address target, uint timestamp);
+    event LockAccount(address target, uint256 timestamp);
+    event ForzenAccount(address target, bool frozen);
 
-    mapping(address => uint256) public locks;
+    address public lastLockAdderss;
+    uint256 public lastLockTimestamp;
+
+    mapping(address => uint256) public lockedAccount;
+    mapping (address => bool) public frozenAccount;
 
     constructor (uint256 initialSupply, string tokenName, string tokenSymbol) TokenERC20(initialSupply, tokenName, tokenSymbol) public {}
 
-    function nowTimestamp() public view returns(uint256) {
-        return now;
-    }
-
-    function  blockTimestamp() public view returns(uint256) {
-        return block.timestamp;
-    }
-
-    function lockAccount(address target, uint256 lockSeconds) public returns(uint256) {
+    function lockAccount(address target, uint256 lockTimestamp) public {
 
         //判断锁日期是否大于当前时间
-        require(now < lockSeconds);
+        uint256 timestamp = block.timestamp;
 
+        require(timestamp < lockTimestamp);
+        
         //判断是否已经锁仓 并且锁仓时间大于所传时间
-        require(locks[target] > lockSeconds);
+        require(lockedAccount[target] > lockTimestamp);
 
         // 修改锁仓时间
-        locks[target] = lockSeconds;
+        lockedAccount[target] = lockTimestamp;
 
-        emit LockAccount(target, lockSeconds);
+        lastLockAdderss = target;
+        lastLockTimestamp = lockTimestamp;
 
-        return now;
+        emit LockAccount(target, lockTimestamp);
     }
 
-    // 判断是否锁仓
-    function isLocked(address target) public view returns (bool success) {
-        return locks[target] > now;
+    function freezeAccount(address target, bool freeze) onlyOwner public {
+        frozenAccount[target] = freeze;
+        emit ForzenAccount(target, freeze);
     }
 
     function _transfer(address _from,  address _to, uint256 _value) internal {
         require(_to != 0x0);
         require(balanceOf[_from] >= _value);
         require (balanceOf[_to] + _value >= balanceOf[_to]);
+        
+        // 账户没有被冻结
+        require(!frozenAccount[_from]);
+        require(!frozenAccount[_to]);  
 
-        //没有锁仓才能继续往下走
-        require(!isLocked(_from));
+        //发送账户没有锁仓
+        require(lockedAccount[_from] < block.timestamp);
 
         balanceOf[_from] -= _value;                   
         balanceOf[_to] += _value;                       
@@ -70,6 +74,7 @@ contract MyToken is Owned, TokenERC20 {
         buyPrice = newBuyPrice;
     }
 
+    //设置买卖价格
     function buy() payable public {
         uint amount = msg.value / buyPrice;
         _transfer(this, msg.sender, amount);
