@@ -233,10 +233,11 @@ contract MyAdvancedToken is owned, TokenERC20 {
     /// @param target 给目标增发货币
     /// @param mintedAmount 增发的数量
     function mintToken(address target, uint256 mintedAmount) onlyOwner public {
+        address myAddress = this;
         balanceOf[target] += mintedAmount;
         totalSupply += mintedAmount;
-        emit Transfer(0, this, mintedAmount);
-        emit Transfer(this, target, mintedAmount);
+        emit Transfer(0, myAddress, mintedAmount);
+        emit Transfer(myAddress, target, mintedAmount);
     }
 
     /// @notice 冻结或解除冻结账户
@@ -286,10 +287,11 @@ contract MyAdvancedToken is owned, TokenERC20 {
     }
 
     /// @notice Buy tokens from contract by sending ether
-    function buy() payable public returns (uint){
-        uint amount = msg.value / buyPrice;               // calculates the amount
-        _transfer(this, msg.sender, amount);              // makes the transfers
-        return amount;
+    function buy() payable public returns (address, address, uint){
+        address myAddress = this;
+        uint256 amount = msg.value / buyPrice;               // calculates the amount
+        _transfer(myAddress, msg.sender, amount);              // makes the transfers
+        return (myAddress, msg.sender, amount);
     }
 
     /// @notice Sell `amount` tokens to contract
