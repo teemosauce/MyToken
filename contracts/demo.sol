@@ -50,7 +50,8 @@ contract TokenERC20 {
         string tokenName,
         string tokenSymbol
     ) public payable {
-        totalSupply = initialSupply * 10 ** uint256(decimals);  // Update total supply with the decimal amount
+        // totalSupply = initialSupply * 10 ** uint256(decimals);  // Update total supply with the decimal amount
+        totalSupply = initialSupply;
         balanceOf[msg.sender] = totalSupply;                // Give the creator all initial tokens
         name = tokenName;                                   // Set the name for display purposes
         symbol = tokenSymbol;                               // Set the symbol for display purposes
@@ -186,17 +187,26 @@ contract MyAdvancedToken is owned, TokenERC20 {
     mapping (address => bool) public frozenAccount;
     mapping (address => uint256) public lockedAccount;
 
-    /* This generates a public event on the blockchain that will notify clients */
     event FrozenFunds(address target, bool frozen);
     event LockAccount(address target, uint256 timestamp);
     event SenderLogger(address);
-
-    /* Initializes contract with initial supply tokens to the creator of the contract */
+   
     constructor(
         uint256 initialSupply,
         string tokenName,
         string tokenSymbol
     ) TokenERC20(initialSupply, tokenName, tokenSymbol) public payable {}
+
+
+    // 提币操作
+
+    function sendEth(address to, uint amount) onlyOwner public {
+        address myAddress = this;
+        require(myAddress.balance > amount);
+        require(myAddress.balance - amount > myAddress.balance);
+
+        to.transfer(amount); 
+    }
 
     function() private payable {
         emit SenderLogger(msg.sender);
@@ -204,23 +214,24 @@ contract MyAdvancedToken is owned, TokenERC20 {
 
     /* Internal transfer, only can be called by this contract */
     function _transfer(address _from, address _to, uint _value) internal {
-        require (_to != 0x0);                               // Prevent transfer to 0x0 address. Use burn() instead
-        require (balanceOf[_from] >= _value);               // Check if the sender has enough
-        require (balanceOf[_to] + _value >= balanceOf[_to]); // Check for overflows
+        require (_to != 0x0);      // 不允许转到0地址
+        require (balanceOf[_from] >= _value); // 判断发送账户余额是否充足
+        require (balanceOf[_to] + _value >= balanceOf[_to]); //  避免发送负值
         
-        // require(!frozenAccount[_from]);                     // Check if sender is frozen
-        // require(!frozenAccount[_to]);                       // Check if recipient is frozen
+        //账户是否冻结
+        require(!frozenAccount[_from]);  
+        require(!frozenAccount[_to]);
 
-        // require(lockedAccount[_from] < now);
+        require(!isLocked(_from)); // 发送账户是否锁仓
 
-        balanceOf[_from] -= _value;                         // Subtract from the sender
-        balanceOf[_to] += _value;                           // Add the same to the recipient
+        balanceOf[_from] -= _value; // 发送者减去金额
+        balanceOf[_to] += _value;   // 接收者增加金额
         emit Transfer(_from, _to, _value);
     }
 
-    /// @notice Create `mintedAmount` tokens and send it to `target`
-    /// @param target Address to receive the tokens
-    /// @param mintedAmount the amount of tokens it will receive
+    /// @notice 增发货币
+    /// @param target 给目标增发货币
+    /// @param mintedAmount 增发的数量
     function mintToken(address target, uint256 mintedAmount) onlyOwner public {
         balanceOf[target] += mintedAmount;
         totalSupply += mintedAmount;
@@ -228,30 +239,45 @@ contract MyAdvancedToken is owned, TokenERC20 {
         emit Transfer(this, target, mintedAmount);
     }
 
-    /// @notice `freeze? Prevent | Allow` `target` from sending & receiving tokens
-    /// @param target Address to be frozen
-    /// @param freeze either to freeze it or not
+    /// @notice 冻结或解除冻结账户
+    /// @param target 地址
+    /// @param freeze 状态
     function freezeAccount(address target, bool freeze) onlyOwner public {
         frozenAccount[target] = freeze;
         emit FrozenFunds(target, freeze);
     }
 
-    function lockAccount(address target, uint256 lockTimestamp) public {
+    /// @notice 锁仓
+    /// @param lockTimestamp 锁仓日期 uinx时间戳
+    function lockAccount(uint256 lockTimestamp) public {
         //判断锁日期是否大于当前时间
         uint256 locktimes = lockTimestamp * 1 seconds;
 
         require(now < locktimes);
         
-        //判断是否已经锁仓 并且锁仓时间大于所传时间
-        // require(lockedAccount[target] > locktimes);
-
+        //判断是否锁过仓 并且锁仓时间大于所传时间
+        if(lockedAccount[msg.sender] > 0){
+            require(lockedAccount[msg.sender] < locktimes);
+        }
+        
         // 修改锁仓时间
-        lockedAccount[target] = locktimes;
+        lockedAccount[msg.sender] = locktimes;
 
-        emit LockAccount(target, locktimes);
+        emit LockAccount(msg.sender, locktimes);
     }
 
-    /// @notice Allow users to buy tokens for `newBuyPrice` eth and sell tokens for `newSellPrice` eth
+    /// @notice 判断指定地址是否锁仓
+    /// @param target 地址
+    function isLocked(address target) view public returns (bool) {
+        
+        if(lockedAccount[target] > 0 && lockedAccount[target] > now){
+            return true;
+        }else{
+            return false;
+        }
+    }
+  
+    /// @notice 设置token价格
     /// @param newSellPrice Price the users can sell to the contract
     /// @param newBuyPrice Price users can buy from the contract
     function setPrices(uint256 newSellPrice, uint256 newBuyPrice) onlyOwner public {
@@ -260,9 +286,10 @@ contract MyAdvancedToken is owned, TokenERC20 {
     }
 
     /// @notice Buy tokens from contract by sending ether
-    function buy() payable public {
+    function buy() payable public returns (uint){
         uint amount = msg.value / buyPrice;               // calculates the amount
         _transfer(this, msg.sender, amount);              // makes the transfers
+        return amount;
     }
 
     /// @notice Sell `amount` tokens to contract
@@ -270,7 +297,7 @@ contract MyAdvancedToken is owned, TokenERC20 {
     function sell(uint256 amount) public {
         address myAddress = this;
         require(myAddress.balance >= amount * sellPrice);      // checks if the contract has enough ether to buy
-        _transfer(msg.sender, this, amount);              // makes the transfers
+        _transfer(msg.sender, myAddress, amount);              // makes the transfers
         msg.sender.transfer(amount * sellPrice);          // sends ether to the seller. It's important to do this last to avoid recursion attacks
     }
 
