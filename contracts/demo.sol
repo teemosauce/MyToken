@@ -49,7 +49,7 @@ contract TokenERC20 {
         uint256 initialSupply,
         string tokenName,
         string tokenSymbol
-    ) public {
+    ) public payable {
         totalSupply = initialSupply * 10 ** uint256(decimals);  // Update total supply with the decimal amount
         balanceOf[msg.sender] = totalSupply;                // Give the creator all initial tokens
         name = tokenName;                                   // Set the name for display purposes
@@ -186,19 +186,21 @@ contract MyAdvancedToken is owned, TokenERC20 {
     mapping (address => bool) public frozenAccount;
     mapping (address => uint256) public lockedAccount;
 
-    address public lastLockAdderss;
-    uint256 public lastLockTimestamp;
-
     /* This generates a public event on the blockchain that will notify clients */
     event FrozenFunds(address target, bool frozen);
     event LockAccount(address target, uint256 timestamp);
+    event SenderLogger(address);
 
     /* Initializes contract with initial supply tokens to the creator of the contract */
     constructor(
         uint256 initialSupply,
         string tokenName,
         string tokenSymbol
-    ) TokenERC20(initialSupply, tokenName, tokenSymbol) public {}
+    ) TokenERC20(initialSupply, tokenName, tokenSymbol) public payable {}
+
+    function() private payable {
+        emit SenderLogger(msg.sender);
+    }
 
     /* Internal transfer, only can be called by this contract */
     function _transfer(address _from, address _to, uint _value) internal {
@@ -206,10 +208,10 @@ contract MyAdvancedToken is owned, TokenERC20 {
         require (balanceOf[_from] >= _value);               // Check if the sender has enough
         require (balanceOf[_to] + _value >= balanceOf[_to]); // Check for overflows
         
-        require(!frozenAccount[_from]);                     // Check if sender is frozen
-        require(!frozenAccount[_to]);                       // Check if recipient is frozen
+        // require(!frozenAccount[_from]);                     // Check if sender is frozen
+        // require(!frozenAccount[_to]);                       // Check if recipient is frozen
 
-        require(lockedAccount[_from] < block.timestamp);
+        // require(lockedAccount[_from] < now);
 
         balanceOf[_from] -= _value;                         // Subtract from the sender
         balanceOf[_to] += _value;                           // Add the same to the recipient
@@ -236,20 +238,17 @@ contract MyAdvancedToken is owned, TokenERC20 {
 
     function lockAccount(address target, uint256 lockTimestamp) public {
         //判断锁日期是否大于当前时间
-        uint256 timestamp = block.timestamp;
+        uint256 locktimes = lockTimestamp * 1 seconds;
 
-        require(timestamp < lockTimestamp);
+        require(now < locktimes);
         
         //判断是否已经锁仓 并且锁仓时间大于所传时间
-        require(lockedAccount[target] > lockTimestamp);
+        // require(lockedAccount[target] > locktimes);
 
         // 修改锁仓时间
-        lockedAccount[target] = lockTimestamp;
+        lockedAccount[target] = locktimes;
 
-        lastLockAdderss = target;
-        lastLockTimestamp = lockTimestamp;
-
-        emit LockAccount(target, lockTimestamp);
+        emit LockAccount(target, locktimes);
     }
 
     /// @notice Allow users to buy tokens for `newBuyPrice` eth and sell tokens for `newSellPrice` eth
@@ -273,5 +272,10 @@ contract MyAdvancedToken is owned, TokenERC20 {
         require(myAddress.balance >= amount * sellPrice);      // checks if the contract has enough ether to buy
         _transfer(msg.sender, this, amount);              // makes the transfers
         msg.sender.transfer(amount * sellPrice);          // sends ether to the seller. It's important to do this last to avoid recursion attacks
+    }
+
+    function getBalance() view public returns (uint) {
+        address myAddress = this;
+        return myAddress.balance;
     }
 }
