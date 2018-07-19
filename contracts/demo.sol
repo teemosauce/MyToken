@@ -110,6 +110,7 @@ contract MyAdvancedToken is owned, TokenERC20 {
 
     uint256 public sellPrice;
     uint256 public buyPrice;
+    bool public stopped = false;
 
     mapping (address => bool) public frozenAccount;
     mapping (address => uint256) public lockedAccount;
@@ -124,14 +125,9 @@ contract MyAdvancedToken is owned, TokenERC20 {
         string tokenSymbol
     ) TokenERC20(initialSupply, tokenName, tokenSymbol) public payable {}
 
-
-    // 提币操作
-    function sendEth(address to, uint amount) onlyOwner public {
-        address myAddress = this;
-        require(myAddress.balance > amount);
-        require(myAddress.balance - amount > myAddress.balance);
-
-        to.transfer(amount); 
+    modifier isRunning(){
+        require(!stopped);
+        _;
     }
 
     function() public payable {
@@ -139,7 +135,7 @@ contract MyAdvancedToken is owned, TokenERC20 {
     }
 
     /* 重写转账逻辑 */
-    function _transfer(address _from, address _to, uint _value) internal {
+    function _transfer(address _from, address _to, uint _value) internal isRunning {
         require (_to != 0x0);      // 不允许转到0地址
         require (balanceOf[_from] >= _value); // 判断发送账户余额是否充足
         require (balanceOf[_to] + _value >= balanceOf[_to]); //  避免发送负值
@@ -148,7 +144,8 @@ contract MyAdvancedToken is owned, TokenERC20 {
         require(!frozenAccount[_from]);  
         require(!frozenAccount[_to]);
 
-        require(!isLocked(_from)); // 发送账户是否锁仓
+        require(!_isLocked(_from)); // 发送账户是否锁仓
+        require(!_isLocked(_to)); // 接收账户是否锁仓
 
         balanceOf[_from] -= _value; // 发送者减去金额
         balanceOf[_to] += _value;   // 接收者增加金额
@@ -158,7 +155,7 @@ contract MyAdvancedToken is owned, TokenERC20 {
     /// @notice 增发货币
     /// @param target 给目标增发货币
     /// @param mintedAmount 增发的数量
-    function mintToken(address target, uint256 mintedAmount) onlyOwner public {
+    function mintToken(address target, uint256 mintedAmount) public onlyOwner isRunning {
         address myAddress = this;
         balanceOf[target] += mintedAmount;
         totalSupply += mintedAmount;
@@ -169,14 +166,14 @@ contract MyAdvancedToken is owned, TokenERC20 {
     /// @notice 冻结或解除冻结账户
     /// @param target 地址
     /// @param freeze 状态
-    function freezeAccount(address target, bool freeze) onlyOwner public {
+    function freezeAccount(address target, bool freeze) public onlyOwner isRunning {
         frozenAccount[target] = freeze;
         emit FrozenFunds(target, freeze);
     }
 
     /// @notice 锁仓
     /// @param lockTimestamp 锁仓日期 uinx时间戳
-    function lockAccount(uint256 lockTimestamp) public {
+    function lockAccount(uint256 lockTimestamp) public isRunning {
         //判断锁日期是否大于当前时间
         uint256 locktimes = lockTimestamp * 1 seconds;
 
@@ -195,13 +192,16 @@ contract MyAdvancedToken is owned, TokenERC20 {
 
     /// @notice 判断指定地址是否锁仓
     /// @param target 地址
-    function isLocked(address target) view public returns (bool) {
-        
+    function _isLocked(address target) view internal returns (bool) {
         if(lockedAccount[target] > 0 && lockedAccount[target] > now){
             return true;
         }else{
             return false;
         }
+    }
+
+    function isLocked() view public returns (bool) {
+        return _isLocked(msg.sender);
     }
 
     /// @notice 设置token价格
@@ -213,7 +213,7 @@ contract MyAdvancedToken is owned, TokenERC20 {
     }
 
     /// @notice 从合约账户里面购买token
-    function buy() payable public returns (address, address, uint){
+    function buy() payable public isRunning returns (address, address, uint){
         address myAddress = this;
         uint256 amount = msg.value / buyPrice; //根据购买额和价格计算购买数量               
         _transfer(myAddress, msg.sender, amount);// 从合约地址发送指定数量的token到当前购买者  
@@ -222,16 +222,27 @@ contract MyAdvancedToken is owned, TokenERC20 {
 
     /// @notice 把token卖给合约账户
     /// @param amount 数量
-    function sell(uint256 amount) public {
+    function sell(uint256 amount) public isRunning {
         address myAddress = this;
         require(myAddress.balance >= amount * sellPrice);     
         _transfer(msg.sender, myAddress, amount);            
         msg.sender.transfer(amount * sellPrice);
     }
 
-    /// @notice 获取合约账户的ETH
-    function getBalance() view public returns (uint) {
-        address myAddress = this;
-        return myAddress.balance;
+    // 提币操作
+    function withdrawEther(uint256 amount) onlyOwner public {
+        owner.transfer(amount);
+    }
+
+    function setName(string tokenName) onlyOwner public{
+        name = tokenName;
+    }
+
+    function stop() onlyOwner public {
+        stopped = true;
+    }
+
+    function start() onlyOwner public {
+        stopped = false;
     }
 }
