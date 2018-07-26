@@ -13,6 +13,8 @@ contract Owned {
     }
 
     function transferOwnership(address newOwner) onlyOwner public {
-        owner = newOwner;
+        if(newOwner != address(0)){
+            owner = newOwner;
+        }
     }
 }

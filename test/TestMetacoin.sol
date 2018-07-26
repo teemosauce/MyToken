@@ -4,10 +4,10 @@ import "truffle/Assert.sol";
 import "truffle/DeployedAddresses.sol";
 import "../contracts/MyToken.sol";
 
-contract TestMetacoin {
+contract TestMyToken {
 
     function testInitialBalanceUsingDeployedContract() public {
-        MyToken meta = MyToken(DeployedAddresses.MyToken());
+        MyToken token = MyToken(DeployedAddresses.MyToken());
 
         uint expected = 10000;
 
@@ -15,7 +15,7 @@ contract TestMetacoin {
     }
 
     function testInitialBalanceWithNewMyToken() public {
-        MyToken meta = new MyToken();
+        MyToken token = new MyToken();
 
         uint expected = 10000;
 

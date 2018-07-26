@@ -1,9 +1,9 @@
-var MetaCoin = artifacts.require("./MetaCoin.sol");
+var MyToken = artifacts.require("./MyToken.sol");
 
-contract('MetaCoin', function(accounts) {
+contract('MyToken', function(accounts) {
   console.log(accounts)
-  it("should put 10000 MetaCoin in the first account", function() {
-    return MetaCoin.deployed().then(function(instance) {
+  it("should put 10000 MyToken in the first account", function() {
+    return MyToken.deployed().then(function(instance) {
       return instance.getBalance.call(accounts[0]);
     }).then(function(balance) {
       assert.equal(balance.valueOf(), 10000, "10000 wasn't in the first account");
@@ -11,19 +11,19 @@ contract('MetaCoin', function(accounts) {
   });
   it("should call a function that depends on a linked library", function() {
     var meta;
-    var metaCoinBalance;
-    var metaCoinEthBalance;
+    var MyTokenBalance;
+    var MyTokenEthBalance;
 
-    return MetaCoin.deployed().then(function(instance) {
+    return MyToken.deployed().then(function(instance) {
       meta = instance;
       return meta.getBalance.call(accounts[0]);
     }).then(function(outCoinBalance) {
-      metaCoinBalance = outCoinBalance.toNumber();
+      MyTokenBalance = outCoinBalance.toNumber();
       return meta.getBalanceInEth.call(accounts[0]);
     }).then(function(outCoinBalanceEth) {
-      metaCoinEthBalance = outCoinBalanceEth.toNumber();
+      MyTokenEthBalance = outCoinBalanceEth.toNumber();
     }).then(function() {
-      assert.equal(metaCoinEthBalance, 2 * metaCoinBalance, "Library function returned unexpected function, linkage may be broken");
+      assert.equal(MyTokenEthBalance, 2 * MyTokenBalance, "Library function returned unexpected function, linkage may be broken");
     });
   });
   it("should send coin correctly", function() {
@@ -40,7 +40,7 @@ contract('MetaCoin', function(accounts) {
 
     var amount = 10;
 
-    return MetaCoin.deployed().then(function(instance) {
+    return MyToken.deployed().then(function(instance) {
       meta = instance;
       return meta.getBalance.call(account_one);
     }).then(function(balance) {
